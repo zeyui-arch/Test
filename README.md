@@ -1,2 +1,406 @@
-# Test
-test_de_vibe_Ap
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wayback Search Pro - Recherche Multi-Plateforme</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        
+        // Icônes SVG simplifiées
+        const Icon = ({ name, className = "w-6 h-6" }) => {
+            const icons = {
+                search: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
+                calendar: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+                external: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
+                archive: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
+                loader: <svg className={className + " animate-spin"} fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>,
+                user: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+                image: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
+                video: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
+                link: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+                globe: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            };
+            return icons[name] || null;
+        };
+
+        function WaybackSearch() {
+            const [searchType, setSearchType] = useState('url');
+            const [searchQuery, setSearchQuery] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [results, setResults] = useState(null);
+            const [error, setError] = useState('');
+
+            const searchTypes = [
+                { id: 'url', label: 'URL / Site Web', icon: 'globe', placeholder: 'example.com' },
+                { id: 'username', label: 'Pseudo / Username', icon: 'user', placeholder: '@username ou username' },
+                { id: 'image', label: 'Lien Image', icon: 'image', placeholder: "URL de l'image" },
+                { id: 'video', label: 'Lien Vidéo', icon: 'video', placeholder: 'URL de la vidéo (YouTube, etc.)' },
+                { id: 'link', label: 'Lien Spécifique', icon: 'link', placeholder: 'URL complète' }
+            ];
+
+            const generateSearchUrls = (query, type) => {
+                const cleanQuery = query.trim().replace('@', '');
+                const urls = [];
+
+                switch(type) {
+                    case 'username':
+                        urls.push(
+                            { platform: 'Twitter/X', url: `https://twitter.com/${cleanQuery}` },
+                            { platform: 'Instagram', url: `https://instagram.com/${cleanQuery}` },
+                            { platform: 'Facebook', url: `https://facebook.com/${cleanQuery}` },
+                            { platform: 'Reddit', url: `https://reddit.com/user/${cleanQuery}` },
+                            { platform: 'YouTube', url: `https://youtube.com/@${cleanQuery}` },
+                            { platform: 'TikTok', url: `https://tiktok.com/@${cleanQuery}` },
+                            { platform: 'Snapchat', url: `https://snapchat.com/add/${cleanQuery}` },
+                            { platform: 'Twitch', url: `https://twitch.tv/${cleanQuery}` },
+                            { platform: 'LinkedIn', url: `https://linkedin.com/in/${cleanQuery}` },
+                            { platform: 'GitHub', url: `https://github.com/${cleanQuery}` },
+                            { platform: 'GitLab', url: `https://gitlab.com/${cleanQuery}` },
+                            { platform: 'Stack Overflow', url: `https://stackoverflow.com/users/${cleanQuery}` },
+                            { platform: 'Dev.to', url: `https://dev.to/${cleanQuery}` },
+                            { platform: 'Medium', url: `https://medium.com/@${cleanQuery}` },
+                            { platform: 'Behance', url: `https://behance.net/${cleanQuery}` },
+                            { platform: 'Dribbble', url: `https://dribbble.com/${cleanQuery}` },
+                            { platform: 'DeviantArt', url: `https://deviantart.com/${cleanQuery}` },
+                            { platform: 'ArtStation', url: `https://artstation.com/${cleanQuery}` },
+                            { platform: 'SoundCloud', url: `https://soundcloud.com/${cleanQuery}` },
+                            { platform: 'Spotify', url: `https://open.spotify.com/user/${cleanQuery}` },
+                            { platform: 'Steam', url: `https://steamcommunity.com/id/${cleanQuery}` },
+                            { platform: 'Discord', url: `https://discord.com/users/${cleanQuery}` },
+                            { platform: 'Roblox', url: `https://roblox.com/users/profile?username=${cleanQuery}` },
+                            { platform: 'Xbox Live', url: `https://account.xbox.com/profile?gamertag=${cleanQuery}` },
+                            { platform: 'Quora', url: `https://quora.com/profile/${cleanQuery}` },
+                            { platform: 'Pinterest', url: `https://pinterest.com/${cleanQuery}` },
+                            { platform: 'Tumblr', url: `https://${cleanQuery}.tumblr.com` },
+                            { platform: 'Flickr', url: `https://flickr.com/people/${cleanQuery}` },
+                            { platform: 'Weibo', url: `https://weibo.com/${cleanQuery}` },
+                            { platform: 'VK', url: `https://vk.com/${cleanQuery}` },
+                            { platform: 'Telegram', url: `https://t.me/${cleanQuery}` },
+                            { platform: 'Patreon', url: `https://patreon.com/${cleanQuery}` },
+                            { platform: 'OnlyFans', url: `https://onlyfans.com/${cleanQuery}` },
+                            { platform: 'Linktree', url: `https://linktr.ee/${cleanQuery}` },
+                            { platform: 'Myspace', url: `https://myspace.com/${cleanQuery}` }
+                        );
+                        break;
+                    
+                    case 'image':
+                    case 'video':
+                    case 'link':
+                        let url = query.trim();
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = 'https://' + url;
+                        }
+                        urls.push({ platform: 'Direct', url: url });
+                        break;
+                    
+                    case 'url':
+                    default:
+                        let mainUrl = query.trim();
+                        if (!mainUrl.startsWith('http://') && !mainUrl.startsWith('https://')) {
+                            mainUrl = 'https://' + mainUrl;
+                        }
+                        urls.push({ platform: 'Direct', url: mainUrl });
+                        break;
+                }
+
+                return urls;
+            };
+
+            const checkWayback = async (url) => {
+                try {
+                    const apiUrl = `https://archive.org/wayback/available?url=${encodeURIComponent(url)}`;
+                    const response = await fetch(apiUrl);
+                    const data = await response.json();
+                    
+                    return {
+                        available: !!(data.archived_snapshots && data.archived_snapshots.closest),
+                        snapshot: data.archived_snapshots?.closest || null,
+                        url: url
+                    };
+                } catch (err) {
+                    return { available: false, snapshot: null, url: url, error: true };
+                }
+            };
+
+            const performSearch = async () => {
+                if (!searchQuery) {
+                    setError('Veuillez entrer une recherche');
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+                setResults(null);
+
+                try {
+                    const urls = generateSearchUrls(searchQuery, searchType);
+                    const checks = await Promise.all(
+                        urls.map(async ({ platform, url }) => {
+                            const result = await checkWayback(url);
+                            return { platform, ...result };
+                        })
+                    );
+
+                    const availableResults = checks.filter(r => r.available);
+                    
+                    if (availableResults.length === 0) {
+                        setError('Aucun snapshot trouvé pour cette recherche');
+                    } else {
+                        setResults({
+                            query: searchQuery,
+                            type: searchType,
+                            results: checks
+                        });
+                    }
+                } catch (err) {
+                    setError('Erreur lors de la recherche');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            };
+
+            const formatDate = (timestamp) => {
+                const year = timestamp.substring(0, 4);
+                const month = timestamp.substring(4, 6);
+                const day = timestamp.substring(6, 8);
+                const hour = timestamp.substring(8, 10);
+                const minute = timestamp.substring(10, 12);
+                return `${day}/${month}/${year} ${hour}:${minute}`;
+            };
+
+            const openWayback = (timestamp, url) => {
+                const waybackUrl = `https://web.archive.org/web/${timestamp}/${url}`;
+                window.open(waybackUrl, '_blank');
+            };
+
+            const openCalendar = (url) => {
+                window.open(`https://web.archive.org/web/*/${url}`, '_blank');
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
+                    <div className="max-w-6xl mx-auto pt-8">
+                        <div className="text-center mb-8">
+                            <div className="flex justify-center items-center gap-3 mb-4">
+                                <Icon name="archive" className="w-12 h-12 text-indigo-600" />
+                                <h1 className="text-4xl font-bold text-gray-800">Wayback Search Pro</h1>
+                            </div>
+                            <p className="text-gray-600 text-lg">Recherchez par URL, pseudo, image, vidéo ou lien</p>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                {searchTypes.map(({ id, label, icon }) => (
+                                    <button
+                                        key={id}
+                                        onClick={() => setSearchType(id)}
+                                        className={`p-4 rounded-xl border-2 transition-all ${
+                                            searchType === id
+                                                ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                                                : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Icon name={icon} className={`w-6 h-6 mx-auto mb-2 ${
+                                            searchType === id ? 'text-indigo-600' : 'text-gray-400'
+                                        }`} />
+                                        <div className={`text-sm font-semibold ${
+                                            searchType === id ? 'text-indigo-700' : 'text-gray-600'
+                                        }`}>
+                                            {label}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+                            <div className="flex gap-3">
+                                <div className="flex-1 relative">
+                                    <Icon name={searchTypes.find(t => t.id === searchType)?.icon} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyPress={handleKeyPress}
+                                        placeholder={searchTypes.find(t => t.id === searchType)?.placeholder}
+                                        className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-lg"
+                                    />
+                                </div>
+                                <button
+                                    onClick={performSearch}
+                                    disabled={loading}
+                                    className="px-8 py-4 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Icon name="loader" className="w-5 h-5" />
+                                            Recherche...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Icon name="search" className="w-5 h-5" />
+                                            Rechercher
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {error && (
+                                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                                    {error}
+                                </div>
+                            )}
+                        </div>
+
+                        {results && (
+                            <div className="bg-white rounded-2xl shadow-xl p-8">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                                    Résultats pour : <span className="text-indigo-600">{results.query}</span>
+                                </h2>
+                                <p className="text-gray-600 mb-6">
+                                    {results.results.filter(r => r.available).length} snapshot(s) trouvé(s)
+                                </p>
+
+                                <div className="space-y-4">
+                                    {results.results.map((result, index) => (
+                                        <div
+                                            key={index}
+                                            className={`p-6 rounded-xl border-2 transition-all ${
+                                                result.available
+                                                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                                                    : 'bg-gray-50 border-gray-200 opacity-60'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                                            result.available
+                                                                ? 'bg-green-100 text-green-700'
+                                                                : 'bg-gray-200 text-gray-600'
+                                                        }`}>
+                                                            {result.platform}
+                                                        </span>
+                                                        {result.available && (
+                                                            <span className="text-green-600 text-sm font-semibold">
+                                                                ✓ Disponible
+                                                            </span>
+                                                        )}
+                                                        {!result.available && !result.error && (
+                                                            <span className="text-gray-500 text-sm">
+                                                                Aucun snapshot
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="text-sm text-gray-600 mb-2 break-all">
+                                                        {result.url}
+                                                    </div>
+
+                                                    {result.available && result.snapshot && (
+                                                        <div className="flex items-center gap-4 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-600">Dernier snapshot : </span>
+                                                                <span className="font-semibold text-indigo-700">
+                                                                    {formatDate(result.snapshot.timestamp)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {result.available && (
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => openWayback(result.snapshot.timestamp, result.url)}
+                                                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 whitespace-nowrap"
+                                                        >
+                                                            <Icon name="external" className="w-4 h-4" />
+                                                            Voir
+                                                        </button>
+                                                        <button
+                                                            onClick={() => openCalendar(result.url)}
+                                                            className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2 whitespace-nowrap"
+                                                        >
+                                                            <Icon name="calendar" className="w-4 h-4" />
+                                                            Timeline
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {!results && !loading && (
+                            <div className="bg-white rounded-2xl shadow-xl p-8">
+                                <h3 className="text-xl font-bold text-gray-800 mb-4">Guide d'utilisation</h3>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h4 className="font-semibold text-indigo-600 mb-2 flex items-center gap-2">
+                                            <Icon name="user" className="w-5 h-5" />
+                                            Recherche par pseudo
+                                        </h4>
+                                        <p className="text-gray-600 text-sm">
+                                            Recherche sur 35+ plateformes incluant Twitter, Instagram, Facebook, Reddit, GitHub, YouTube, TikTok et bien plus
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-indigo-600 mb-2 flex items-center gap-2">
+                                            <Icon name="globe" className="w-5 h-5" />
+                                            Recherche par URL
+                                        </h4>
+                                        <p className="text-gray-600 text-sm">
+                                            Recherche l'historique complet d'un site web
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-indigo-600 mb-2 flex items-center gap-2">
+                                            <Icon name="image" className="w-5 h-5" />
+                                            Recherche d'image
+                                        </h4>
+                                        <p className="text-gray-600 text-sm">
+                                            Retrouvez les versions archivées d'une image spécifique
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-indigo-600 mb-2 flex items-center gap-2">
+                                            <Icon name="video" className="w-5 h-5" />
+                                            Recherche de vidéo
+                                        </h4>
+                                        <p className="text-gray-600 text-sm">
+                                            Recherchez les pages de vidéos (YouTube, etc.)
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<WaybackSearch />, document.getElementById('root'));
+    </script>
+</body>
+</html>
